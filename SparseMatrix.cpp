@@ -1,5 +1,21 @@
 #include "SparseMatrix.h" 
 
+bool operator== (StructCOO s1, StructCOO s2)
+{
+    bool result = false; 
+    if (s1.columnIndex == s2.columnIndex && s1.value == s2.value)
+        result = true; 
+    return result;
+}
+
+bool operator==(StructCSR s1, StructCSR s2)
+{
+    bool result = false; 
+    if (s1.lineIndex == s2.lineIndex && s1.value == s2.value)
+        result = true;
+    return result;
+}
+
 void SparseMatrix::add(int line, int column, double value)
 {
     Triplet triplet = Triplet(line,column,value);
@@ -50,8 +66,8 @@ void SparseMatrix::rangingCSR()
 //build the COO format
 void SparseMatrix::setCOO() 
 {
-    m_linesCOO.resize(m_numLines+1);
-    m_columnValue.resize(m_listOfTriplets.size());
+    m_linesCOO = (int*) malloc((m_numLines+1)*sizeof(int));
+    m_columnValue = (StructCOO*) malloc(m_listOfTriplets.size()*sizeof(StructCOO));
 
     rangingCOO();
 
@@ -81,8 +97,8 @@ void SparseMatrix::setCOO()
 //build the CSR format
 void SparseMatrix::setCSR()
 {
-    m_columnsCSR.resize(m_numCols+1);
-    m_lineValue.resize(m_listOfTriplets.size()); 
+    m_columnsCSR = (int*) malloc((m_numCols+1)*sizeof(int));
+    m_lineValue = (StructCSR*) malloc(m_listOfTriplets.size()*sizeof(StructCSR)); 
 
     rangingCSR();
 
@@ -109,9 +125,25 @@ void SparseMatrix::setCSR()
     }      
 }
 
+void SparseMatrix::setBegEndOnLine() 
+{
+    m_begEndOnLine = (ColumnBegEndInLine*) malloc(getNumLines()*sizeof(ColumnBegEndInLine)); 
+    int i;
+    int beg(0),end(0);
+    int nonZerosOnLine; 
+    for (i=1; i<getNumLines()+1; i++ )
+    {
+        nonZerosOnLine = m_linesCOO[i] - m_linesCOO[i-1];
+        end = beg + nonZerosOnLine - 1;
+        m_begEndOnLine[i-1].beg = beg; 
+        m_begEndOnLine[i-1].end = end; 
+        beg += nonZerosOnLine;
+    }
+}
 //setting both of formats
 void SparseMatrix::set()
 {
+    m_numOfNonZeros = m_listOfTriplets.size(); 
     setCOO(); 
     setCSR(); 
     m_listOfTriplets.clear(); 
@@ -126,7 +158,7 @@ void SparseMatrix::printDense()
     int nonZerosOnLine(0);
     int columnIndex(0);   
     
-    for (i=1; i<m_linesCOO.size(); i++)
+    for (i=1; i<m_numOfNonZeros; i++)
     {
         nonZerosOnLine = m_linesCOO[i]-m_linesCOO[i-1];
         
